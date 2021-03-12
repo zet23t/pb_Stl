@@ -401,50 +401,83 @@ namespace Parabox.Stl
 				int len = System.Math.Min(maxVertexCount, (faceCount - f) * 3);
 				Vector3[] v = new Vector3[len];
 				Vector3[] n = new Vector3[len];
+				int[] indices = new int[len * 3];
 				int[] t = new int[len];
 
-				for(int it = 0; it < len; it += 3)
+				for (int it = 0; it < len; it += 3)
 				{
-					v[it  ] = facets[f].a;
-					v[it+1] = facets[f].b;
-					v[it+2] = facets[f].c;
+					v[it] = facets[f].a;
+					v[it + 1] = facets[f].b;
+					v[it + 2] = facets[f].c;
 
-					n[it  ] = facets[f].normal;
-					n[it+1] = facets[f].normal;
-					n[it+2] = facets[f].normal;
+					n[it] = facets[f].normal;
+					n[it + 1] = facets[f].normal;
+					n[it + 2] = facets[f].normal;
 
-					t[it  ] = it+0;
-					t[it+1] = it+1;
-					t[it+2] = it+2;
+					t[it] = it + 0;
+					t[it + 1] = it + 1;
+					t[it + 2] = it + 2;
 
 					f++;
 				}
 
-				if(modelCoordinateSpace == CoordinateSpace.Right)
+				if (modelCoordinateSpace == CoordinateSpace.Right)
 				{
-					for(int i = 0; i < len; i+=3)
+					for (int i = 0; i < len; i += 3)
 					{
-						v[i+0] = Stl.ToCoordinateSpace(v[i+0], CoordinateSpace.Left);
-						v[i+1] = Stl.ToCoordinateSpace(v[i+1], CoordinateSpace.Left);
-						v[i+2] = Stl.ToCoordinateSpace(v[i+2], CoordinateSpace.Left);
+						v[i + 0] = Stl.ToCoordinateSpace(v[i + 0], CoordinateSpace.Left);
+						v[i + 1] = Stl.ToCoordinateSpace(v[i + 1], CoordinateSpace.Left);
+						v[i + 2] = Stl.ToCoordinateSpace(v[i + 2], CoordinateSpace.Left);
 
-						n[i+0] = Stl.ToCoordinateSpace(n[i+0], CoordinateSpace.Left);
-						n[i+1] = Stl.ToCoordinateSpace(n[i+1], CoordinateSpace.Left);
-						n[i+2] = Stl.ToCoordinateSpace(n[i+2], CoordinateSpace.Left);
+						n[i + 0] = Stl.ToCoordinateSpace(n[i + 0], CoordinateSpace.Left);
+						n[i + 1] = Stl.ToCoordinateSpace(n[i + 1], CoordinateSpace.Left);
+						n[i + 2] = Stl.ToCoordinateSpace(n[i + 2], CoordinateSpace.Left);
 
-						var a = t[i+2];
-						t[i+2] = t[i];
+						var a = t[i + 2];
+						t[i + 2] = t[i];
 						t[i] = a;
 					}
 				}
 
-                meshes[meshIndex] = new Mesh
-                {
-                    vertices = v,
-                    normals = n,
-                    triangles = t,
-                    indexFormat = indexFormat
-                };
+				// auto detect mesh winding via calculating the mesh's volume
+				float volume = 0;
+				for (int it = 0; it < len; it += 3)
+				{
+					Vector3 v1 = v[it];
+					Vector3 v2 = v[it + 1];
+					Vector3 v3 = v[it + 2];
+					Vector3 cross = Vector3.Cross(v1, v2);
+					volume -= Vector3.Dot(cross, v3);
+				}
+
+				if (volume < 0)
+				{
+					for (int it = 0; it < len; it += 3)
+					{
+						indices[it * 3] = it;
+						indices[it * 3 + 1] = it + 1;
+						indices[it * 3 + 2] = it + 2;
+					}
+				}
+				else
+				{
+					for (int it = 0; it < len; it += 3)
+					{
+						indices[it * 3] = it;
+						indices[it * 3 + 1] = it + 2;
+						indices[it * 3 + 2] = it + 1;
+					}
+				}
+
+				Mesh mesh = new Mesh()
+				{
+					vertices = v,
+					normals = n,
+					triangles = t,
+					indexFormat = indexFormat
+				};
+
+				mesh.SetIndices(indices, MeshTopology.Triangles, 0);
             }
 
 			return meshes;
